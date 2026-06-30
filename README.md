@@ -13,19 +13,6 @@
 - SQLAlchemy + Alembic
 - HTML + CSS + JavaScript (Chart.js)
 
-## Структура
-├── app/
-│ ├── models/ # Модели БД
-│ ├── routes/ # API-эндпоинты
-│ ├── services/ # Бизнес-логика
-│ ├── templates/ # HTML-шаблоны
-│ └── static/ # CSS / JS
-├── data/ # Тестовые данные
-├── tests/ # Тесты
-├── config.py # Настройки
-├── run.py # Точка входа
-└── requirements.txt # Зависимости
-
 ## Запуск
 ```bash
 python3 -m venv venv
