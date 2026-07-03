@@ -1,120 +1,103 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📋 Паспорт установки</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-</head>
-<body>
-    <!-- Шапка -->
-    <header class="header">
-        <div class="container header__inner">
-            <div class="header__logo">
-                <span class="header__icon">📋</span>
-                <h1 class="header__title">Паспорт установки</h1>
-            </div>
-            <nav class="header__nav">
-                <a href="/" class="header__link active">Объекты</a>
-                <a href="/dashboard" class="header__link">Аналитика</a>
-                <button class="btn btn-primary btn-sm" id="addBtn">+ Добавить объект</button>
-            </nav>
+{% extends "base.html" %}
+
+{% block title %}Объекты - ВентУчёт{% endblock %}
+
+{% block content %}
+    <!-- KPI карточки -->
+    <div class="kpi-grid" id="kpiCards">
+        <div class="kpi-card">
+            <div class="kpi-value" id="totalCount">—</div>
+            <div class="kpi-label">Всего объектов</div>
         </div>
-    </header>
+        <div class="kpi-card kpi-active">
+            <div class="kpi-value" id="activeCount">—</div>
+            <div class="kpi-label">Активные</div>
+        </div>
+        <div class="kpi-card kpi-overdue">
+            <div class="kpi-value" id="overdueCount">—</div>
+            <div class="kpi-label">Просрочено ТО</div>
+        </div>
+    </div>
 
-    <!-- Основной контент -->
-    <main class="container">
-        <!-- Фильтры -->
-        <section class="filters">
-            <div class="filters__row">
-                <select class="filters__select" id="statusFilter">
-                    <option value="all">Все статусы</option>
-                    <option value="active">🟢 Активные</option>
-                    <option value="draft">⚪ Черновики</option>
-                    <option value="emergency">🔴 Аварийные</option>
-                    <option value="archived">⚫ Архивные</option>
-                </select>
-                <input type="text" class="filters__input" id="searchInput" placeholder="🔍 Поиск по названию или адресу...">
-            </div>
-        </section>
+    <!-- Панель управления -->
+    <div class="controls">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="🔍 Поиск по названию или адресу..." class="input">
+        </div>
+        <select id="statusFilter" class="select">
+            <option value="">Все статусы</option>
+            <option value="active">🟢 Активный</option>
+            <option value="draft">⚪ Черновик</option>
+            <option value="emergency">🔴 Аварийный</option>
+            <option value="archived">⚫ Архивный</option>
+        </select>
+        <button class="btn btn-primary" onclick="openCreateModal()">+ Добавить объект</button>
+    </div>
 
-        <!-- Статистика (быстрые цифры) -->
-        <section class="stats">
-            <div class="stats__card">
-                <span class="stats__number" id="totalCount">0</span>
-                <span class="stats__label">Всего объектов</span>
-            </div>
-            <div class="stats__card stats__card--warning">
-                <span class="stats__number" id="overdueCount">0</span>
-                <span class="stats__label">Просрочено ТО</span>
-            </div>
-            <div class="stats__card stats__card--success">
-                <span class="stats__number" id="activeCount">0</span>
-                <span class="stats__label">Активных</span>
-            </div>
-        </section>
+    <!-- Сообщения об ошибках -->
+    <div id="errorMessage" class="error-message" style="display: none;"></div>
 
-        <!-- Таблица объектов -->
-        <section class="table-wrapper">
-            <table class="installations-table">
-                <thead>
-                    <tr>
-                        <th>Паспорт №</th>
-                        <th>Название объекта</th>
-                        <th>Адрес</th>
-                        <th>Статус</th>
-                        <th>Следующее ТО</th>
-                        <th>Оборудование</th>
-                        <th>Действия</th>
-                    </tr>
-                </thead>
-                <tbody id="installationsBody">
-                    <!-- Данные будут загружаться через JS -->
-                </tbody>
-            </table>
-        </section>
-    </main>
+    <!-- Таблица объектов -->
+    <div class="table-container">
+        <table class="table" id="installationsTable">
+            <thead>
+                <tr>
+                    <th>Код</th>
+                    <th>Название</th>
+                    <th>Город</th>
+                    <th>Адрес</th>
+                    <th>Статус</th>
+                    <th>Дата ТО</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr>
+                    <td colspan="7" class="loading">⏳ Загрузка данных...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
-    <!-- Модальное окно для создания/редактирования -->
-    <div class="modal" id="editModal" style="display:none;">
-        <div class="modal__overlay" onclick="closeModal()"></div>
-        <div class="modal__content">
-            <h2 id="modalTitle">Добавить объект</h2>
-            <form id="installForm">
-                <input type="hidden" id="editId">
-                <div class="form__group">
-                    <label>Название объекта</label>
-                    <input type="text" id="formName" required>
+    <!-- Модальное окно -->
+    <div class="modal" id="objectModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Новый объект</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="objectForm" onsubmit="handleSubmit(event)">
+                <input type="hidden" id="objectId">
+                <div class="form-group">
+                    <label for="uniqueCode">Уникальный код *</label>
+                    <input type="text" id="uniqueCode" class="input" required placeholder="ПАС-031">
                 </div>
-                <div class="form__group">
-                    <label>Уникальный код</label>
-                    <input type="text" id="formCode" required>
+                <div class="form-group">
+                    <label for="name">Название *</label>
+                    <input type="text" id="name" class="input" required placeholder="Вентиляционная установка">
                 </div>
-                <div class="form__group">
-                    <label>Город</label>
-                    <input type="text" id="formCity" required>
+                <div class="form-group">
+                    <label for="city">Город</label>
+                    <input type="text" id="city" class="input" placeholder="Москва">
                 </div>
-                <div class="form__group">
-                    <label>Адрес</label>
-                    <input type="text" id="formAddress" required>
+                <div class="form-group">
+                    <label for="address">Адрес</label>
+                    <input type="text" id="address" class="input" placeholder="ул. Тверская, 12">
                 </div>
-                <div class="form__group">
-                    <label>Статус</label>
-                    <select id="formStatus">
+                <div class="form-group">
+                    <label for="status">Статус</label>
+                    <select id="status" class="select">
                         <option value="draft">Черновик</option>
                         <option value="active" selected>Активный</option>
                         <option value="emergency">Аварийный</option>
                         <option value="archived">Архивный</option>
                     </select>
                 </div>
-                <div class="form__actions">
+                <div class="form-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
                     <button type="submit" class="btn btn-primary">Сохранить</button>
                 </div>
             </form>
         </div>
     </div>
-
-    <script src="/static/js/main.js"></script>
-</body>
-</html>
+{% endblock %}
