@@ -20,5 +20,6 @@ def create_app():
     
     from app.routes import api
     app.register_blueprint(api.bp, url_prefix='/api')
+
     
     return app
