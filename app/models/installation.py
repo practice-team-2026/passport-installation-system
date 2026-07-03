@@ -22,6 +22,8 @@ class Installation(db.Model):
     client = db.relationship('Client', backref='installations')
     equipment = db.relationship('Equipment', backref='installation', lazy='dynamic')
     maintenance_events = db.relationship('MaintenanceEvent', backref='installation', lazy='dynamic')
+    next_maintenance_date = db.Column(db.Date, nullable=True)
+    photo_url = db.Column(db.String(500), nullable=True)
 
 class Location(db.Model):
     __tablename__ = 'locations'
