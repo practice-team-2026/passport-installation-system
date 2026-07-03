@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Дашборд - ВентУчёт{% endblock %}
+
+{% block content %}
+    <h1>📊 Аналитика объектов</h1>
+    
+    <!-- KPI карточки -->
+    <div class="kpi-grid" id="dashboardKpi">
+        <div class="kpi-card">
+            <div class="kpi-value" id="totalStats">—</div>
+            <div class="kpi-label">Всего объектов</div>
+        </div>
+        <div class="kpi-card kpi-active">
+            <div class="kpi-value" id="activeStats">—</div>
+            <div class="kpi-label">Активные</div>
+        </div>
+        <div class="kpi-card kpi-overdue">
+            <div class="kpi-value" id="overdueStats">—</div>
+            <div class="kpi-label">Просрочено ТО</div>
+        </div>
+    </div>
+
+    <!-- График -->
+    <div class="chart-container">
+        <canvas id="maintenanceChart"></canvas>
+    </div>
+
+    <!-- Сообщения об ошибках -->
+    <div id="dashboardError" class="error-message" style="display: none;"></div>
+{% endblock %}

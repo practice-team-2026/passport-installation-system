@@ -7,7 +7,6 @@ from datetime import datetime
 bp = Blueprint('api', __name__)
 
 # ---------- УСТАНОВКИ (CRUD) ----------
-
 @bp.route('/installations', methods=['GET'])
 def get_installations():
     """Получить список всех установок"""

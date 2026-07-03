@@ -1,203 +1,253 @@
-// Моковые данные для отладки (потом будем заменять на запросы к API)
-let installations = [
-    {
-        id: '1',
-        unique_code: 'ПАС-001',
-        name: 'Вентиляция ТЦ "Европа"',
-        status: 'active',
-        city: 'Москва',
-        address: 'ул. Тверская, 12',
-        next_maintenance: '2026-07-15',
-        equipment_count: 4
-    },
-    {
-        id: '2',
-        unique_code: 'ПАС-002',
-        name: 'Кондиционирование Офис-центра',
-        status: 'emergency',
-        city: 'Санкт-Петербург',
-        address: 'Невский пр., 45',
-        next_maintenance: '2026-06-20',
-        equipment_count: 2
-    },
-    {
-        id: '3',
-        unique_code: 'ПАС-003',
-        name: 'Насосная станция "Северная"',
-        status: 'active',
-        city: 'Казань',
-        address: 'ул. Баумана, 78',
-        next_maintenance: '2026-08-01',
-        equipment_count: 6
-    },
-    {
-        id: '4',
-        unique_code: 'ПАС-004',
-        name: 'Компрессорная установка',
-        status: 'draft',
-        city: 'Екатеринбург',
-        address: 'ул. Ленина, 34',
-        next_maintenance: '—',
-        equipment_count: 3
-    },
-    {
-        id: '5',
-        unique_code: 'ПАС-005',
-        name: 'Вентиляция Логистического центра',
-        status: 'archived',
-        city: 'Москва',
-        address: 'МКАД, 45-й км',
-        next_maintenance: '—',
-        equipment_count: 5
-    }
-];
+// app/static/js/main.js
+import {
+    getInstallations,
+    createInstallation,
+    updateInstallation,
+    deleteInstallation
+} from './api.js';
 
-// Функция обновления статистики
-function updateStats(data) {
-    document.getElementById('totalCount').textContent = data.length;
-    document.getElementById('activeCount').textContent = data.filter(item => item.status === 'active').length;
-    document.getElementById('overdueCount').textContent = data.filter(item => item.status === 'emergency').length;
+// ---------- СОСТОЯНИЕ ----------
+let installations = [];
+let editingId = null;
+
+// ---------- ЗАГРУЗКА ДАННЫХ ----------
+async function loadInstallations() {
+    try {
+        showLoading(true);
+        installations = await getInstallations();
+        updateKPICards(installations);
+        renderTable(installations);
+        hideError();
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError('Не удалось загрузить данные. Проверьте, что сервер запущен (python run.py).');
+        installations = [];
+        renderTable(installations);
+    } finally {
+        showLoading(false);
+    }
 }
 
-// Функция рендеринга таблицы
-function renderTable(data) {
-    const tbody = document.getElementById('installationsBody');
+// ---------- ОБНОВЛЕНИЕ KPI ----------
+function updateKPICards(data) {
+    const total = data.length;
+    const active = data.filter(i => i.status === 'active').length;
+    const today = new Date();
+    const overdue = data.filter(i => {
+        if (i.next_maintenance && i.next_maintenance !== '—') {
+            const maintDate = new Date(i.next_maintenance);
+            return maintDate < today;
+        }
+        return false;
+    }).length;
     
-    if (data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:#6b7280;">📭 Нет объектов для отображения</td></tr>`;
+    document.getElementById('totalCount').textContent = total;
+    document.getElementById('activeCount').textContent = active;
+    document.getElementById('overdueCount').textContent = overdue;
+}
+
+// ---------- ОТРИСОВКА ТАБЛИЦЫ ----------
+function renderTable(data) {
+    const tbody = document.getElementById('tableBody');
+    
+    if (!data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="loading">Нет данных для отображения</td></tr>`;
         return;
     }
     
     tbody.innerHTML = data.map(item => `
         <tr>
-            <td><strong>${item.unique_code}</strong></td>
-            <td>${item.name}</td>
-            <td>${item.city}, ${item.address}</td>
-            <td><span class="badge badge-${item.status}">${item.status}</span></td>
-            <td>${item.next_maintenance}</td>
-            <td>${item.equipment_count} шт.</td>
-            <td>
-                <button class="btn-icon" onclick="viewInstallation('${item.id}')" title="Просмотр">👁️</button>
-                <button class="btn-icon" onclick="editInstallation('${item.id}')" title="Редактировать">✏️</button>
-                <button class="btn-icon" onclick="deleteInstallation('${item.id}')" title="Удалить">🗑️</button>
+            <td data-label="Код"><strong>${escapeHtml(item.unique_code)}</strong></td>
+            <td data-label="Название">${escapeHtml(item.name)}</td>
+            <td data-label="Город">${escapeHtml(item.city || '—')}</td>
+            <td data-label="Адрес">${escapeHtml(item.address || '—')}</td>
+            <td data-label="Статус"><span class="status-badge status-${item.status}">${getStatusText(item.status)}</span></td>
+            <td data-label="Дата ТО">${item.next_maintenance || '—'}</td>
+            <td data-label="Действия">
+                <button class="btn btn-primary btn-small" onclick="editObject('${item.id}')" title="Редактировать">✏️</button>
+                <button class="btn btn-danger btn-small" onclick="deleteObject('${item.id}')" title="Архивировать">🗑️</button>
             </td>
         </tr>
     `).join('');
-    
-    updateStats(data);
 }
 
-// Фильтрация
-function filterTable() {
-    const status = document.getElementById('statusFilter').value;
-    const query = document.getElementById('searchInput').value.toLowerCase();
+// ---------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ----------
+function getStatusText(status) {
+    const map = {
+        'active': '🟢 Активный',
+        'draft': '⚪️ Черновик',
+        'emergency': '🔴 Аварийный',
+        'archived': '⚫️ Архивный'
+    };
+    return map[status] || status;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// ---------- ФИЛЬТРАЦИЯ ----------
+function filterInstallations() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value;
     
     let filtered = installations;
     
-    if (status !== 'all') {
-        filtered = filtered.filter(item => item.status === status);
+    if (searchTerm) {
+        filtered = filtered.filter(i =>
+            i.name.toLowerCase().includes(searchTerm) ||
+            (i.address && i.address.toLowerCase().includes(searchTerm))
+        );
     }
     
-    if (query) {
-        filtered = filtered.filter(item => 
-            item.name.toLowerCase().includes(query) || 
-            item.city.toLowerCase().includes(query) ||
-            item.address.toLowerCase().includes(query)
-        );
+    if (statusFilter) {
+        filtered = filtered.filter(i => i.status === statusFilter);
     }
     
     renderTable(filtered);
 }
 
-// --- Действия с объектами ---
+// ---------- МОДАЛКА: ОТКРЫТИЕ ----------
+window.openCreateModal = function() {
+    editingId = null;
+    document.getElementById('modalTitle').textContent = '➕ Новый объект';
+    document.getElementById('objectForm').reset();
+    document.getElementById('objectId').value = '';
+    document.getElementById('uniqueCode').value = '';
+    document.getElementById('status').value = 'draft';
+    document.getElementById('objectModal').classList.add('active');
+};
 
-// Добавить
-function openAddModal() {
-    document.getElementById('modalTitle').textContent = '➕ Добавить объект';
-    document.getElementById('editId').value = '';
-    document.getElementById('formName').value = '';
-    document.getElementById('formCode').value = '';
-    document.getElementById('formCity').value = '';
-    document.getElementById('formAddress').value = '';
-    document.getElementById('formStatus').value = 'active';
-    document.getElementById('editModal').style.display = 'flex';
-}
+window.editObject = async function(id) {
+    try {
+        const item = installations.find(i => i.id === id);
+        if (!item) {
+            // Если нет в кэше — загружаем с сервера
+            const response = await fetch(`http://localhost:5000/api/installations/${id}`);
+            if (!response.ok) throw new Error('Ошибка загрузки');
+            const data = await response.json();
+            fillEditForm(data);
+        } else {
+            fillEditForm(item);
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError('Не удалось загрузить данные объекта');
+    }
+};
 
-// Редактировать
-function editInstallation(id) {
-    const item = installations.find(i => i.id === id);
-    if (!item) return;
-    
+function fillEditForm(data) {
+    editingId = data.id;
     document.getElementById('modalTitle').textContent = '✏️ Редактировать объект';
-    document.getElementById('editId').value = item.id;
-    document.getElementById('formName').value = item.name;
-    document.getElementById('formCode').value = item.unique_code;
-    document.getElementById('formCity').value = item.city;
-    document.getElementById('formAddress').value = item.address;
-    document.getElementById('formStatus').value = item.status;
-    document.getElementById('editModal').style.display = 'flex';
+    document.getElementById('objectId').value = data.id;
+    document.getElementById('uniqueCode').value = data.unique_code || '';
+    document.getElementById('name').value = data.name || '';
+    document.getElementById('city').value = data.city || '';
+    document.getElementById('address').value = data.address || '';
+    document.getElementById('status').value = data.status || 'draft';
+    document.getElementById('objectModal').classList.add('active');
 }
 
-// Сохранить (из модалки)
-function saveInstallation(e) {
-    e.preventDefault();
+// ---------- МОДАЛКА: ЗАКРЫТИЕ ----------
+window.closeModal = function() {
+    document.getElementById('objectModal').classList.remove('active');
+    editingId = null;
+};
+
+// ---------- МОДАЛКА: ОТПРАВКА ФОРМЫ ----------
+window.handleSubmit = async function(event) {
+    event.preventDefault();
     
-    const id = document.getElementById('editId').value;
-    const data = {
-        id: id || String(Date.now()),
-        unique_code: document.getElementById('formCode').value,
-        name: document.getElementById('formName').value,
-        city: document.getElementById('formCity').value,
-        address: document.getElementById('formAddress').value,
-        status: document.getElementById('formStatus').value,
-        equipment_count: 0,
-        next_maintenance: '—'
+    const formData = {
+        unique_code: document.getElementById('uniqueCode').value.trim(),
+        name: document.getElementById('name').value.trim(),
+        city: document.getElementById('city').value.trim(),
+        address: document.getElementById('address').value.trim(),
+        status: document.getElementById('status').value
     };
     
-    if (id) {
-        // Редактирование
-        const index = installations.findIndex(i => i.id === id);
-        if (index !== -1) {
-            installations[index] = { ...installations[index], ...data };
-        }
-    } else {
-        // Создание
-        installations.push(data);
+    // Простая валидация
+    if (!formData.unique_code || !formData.name) {
+        showError('Уникальный код и название обязательны для заполнения');
+        return;
     }
     
-    closeModal();
-    filterTable();
+    try {
+        let result;
+        if (editingId) {
+            await updateInstallation(editingId, formData);
+        } else {
+            await createInstallation(formData);
+        }
+        
+        closeModal();
+        await loadInstallations(); // Перезагружаем список
+        hideError();
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError(error.message || 'Не удалось сохранить объект');
+    }
+};
+
+// ---------- УДАЛЕНИЕ ----------
+window.deleteObject = async function(id) {
+    if (!confirm('Вы уверены, что хотите архивировать этот объект?')) {
+        return;
+    }
+    
+    try {
+        await deleteInstallation(id);
+        await loadInstallations();
+        hideError();
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError(error.message || 'Не удалось удалить объект');
+    }
+};
+
+// ---------- УПРАВЛЕНИЕ СОСТОЯНИЕМ ----------
+function showLoading(isLoading) {
+    const tbody = document.getElementById('tableBody');
+    if (isLoading) {
+        tbody.innerHTML = `<tr><td colspan="7" class="loading">⏳ Загрузка данных...</td></tr>`;
+    }
 }
 
-// Удалить
-function deleteInstallation(id) {
-    if (!confirm('Удалить объект?')) return;
-    installations = installations.filter(item => item.id !== id);
-    filterTable();
+function showError(message) {
+    const errorDiv = document.getElementById('errorMessage');
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+    setTimeout(() => {
+        errorDiv.style.display = 'none';
+    }, 5000);
 }
 
-// Закрыть модалку
-function closeModal() {
-    document.getElementById('editModal').style.display = 'none';
+function hideError() {
+    document.getElementById('errorMessage').style.display = 'none';
 }
 
-// Просмотр (заглушка)
-function viewInstallation(id) {
-    alert(`🚧 Карточка объекта ${id}\nБудет реализована после интеграции с бэком`);
-}
-
-// Инициализация при загрузке
+// ---------- ИНИЦИАЛИЗАЦИЯ ----------
 document.addEventListener('DOMContentLoaded', () => {
-    renderTable(installations);
+    loadInstallations();
     
     // Обработчики событий
-    document.getElementById('statusFilter').addEventListener('change', filterTable);
-    document.getElementById('searchInput').addEventListener('input', filterTable);
-    document.getElementById('addBtn').addEventListener('click', openAddModal);
-    document.getElementById('installForm').addEventListener('submit', saveInstallation);
+    document.getElementById('searchInput').addEventListener('input', filterInstallations);
+    document.getElementById('statusFilter').addEventListener('change', filterInstallations);
+    
+    // Закрытие модалки по клику на оверлей
+    document.getElementById('objectModal').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('objectModal')) {
+            closeModal();
+        }
+    });
     
     // Закрытие модалки по Escape
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeModal();
+        if (e.key === 'Escape') {
+            closeModal();
+        }
     });
 });
