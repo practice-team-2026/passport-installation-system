@@ -9,9 +9,10 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-    background-color: #f5f5f5;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     color: #333;
     line-height: 1.6;
+    min-height: 100vh;
 }
 
 /* ---------- НАВИГАЦИЯ ---------- */
@@ -23,7 +24,7 @@ body {
     justify-content: space-between;
     align-items: center;
     height: 60px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 20px rgba(102, 126, 234, 0.3);
     position: sticky;
     top: 0;
     z-index: 100;
@@ -32,6 +33,7 @@ body {
 .nav-brand {
     font-size: 1.5rem;
     font-weight: bold;
+    letter-spacing: 0.5px;
 }
 
 .nav-links {
@@ -43,17 +45,20 @@ body {
     color: white;
     text-decoration: none;
     padding: 0.5rem 1rem;
-    border-radius: 5px;
-    transition: background-color 0.3s;
+    border-radius: 8px;
+    transition: all 0.3s;
+    font-weight: 500;
 }
 
 .nav-link:hover {
-    background-color: rgba(255,255,255,0.1);
+    background-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-1px);
 }
 
 .nav-link.active {
-    background-color: rgba(255,255,255,0.2);
+    background-color: rgba(255, 255, 255, 0.25);
     font-weight: bold;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 /* ---------- ОСНОВНОЙ КОНТЕЙНЕР ---------- */
@@ -67,28 +72,31 @@ h1 {
     margin-bottom: 2rem;
     color: #333;
     font-size: 2rem;
+    font-weight: 700;
 }
 
 /* ---------- KPI КАРТОЧКИ ---------- */
 .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
 }
 
 .kpi-card {
     background: white;
-    padding: 1.5rem;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 1.8rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     text-align: center;
-    transition: transform 0.3s, box-shadow 0.3s;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(10px);
 }
 
 .kpi-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    box-shadow: 0 12px 30px rgba(102, 126, 234, 0.2);
 }
 
 .kpi-active {
@@ -100,9 +108,12 @@ h1 {
 }
 
 .kpi-value {
-    font-size: 2.5rem;
+    font-size: 2.8rem;
     font-weight: bold;
-    color: #667eea;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     margin-bottom: 0.5rem;
 }
 
@@ -110,7 +121,8 @@ h1 {
     color: #666;
     font-size: 0.9rem;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
+    font-weight: 600;
 }
 
 /* ---------- ПАНЕЛЬ УПРАВЛЕНИЯ ---------- */
@@ -131,15 +143,16 @@ h1 {
     width: 100%;
     padding: 0.75rem 1rem;
     border: 2px solid #e0e0e0;
-    border-radius: 8px;
+    border-radius: 12px;
     font-size: 1rem;
-    transition: border-color 0.3s;
+    transition: all 0.3s;
     background: white;
 }
 
 .input:focus, .select:focus {
     outline: none;
     border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
 }
 
 .select {
@@ -151,21 +164,27 @@ h1 {
 .btn {
     padding: 0.75rem 1.5rem;
     border: none;
-    border-radius: 8px;
+    border-radius: 12px;
     font-size: 1rem;
     cursor: pointer;
     transition: all 0.3s;
-    font-weight: 500;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    letter-spacing: 0.3px;
 }
 
 .btn-primary {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
 }
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
 .btn-secondary {
@@ -175,67 +194,166 @@ h1 {
 
 .btn-secondary:hover {
     background: #5a6268;
+    transform: translateY(-1px);
 }
 
 .btn-danger {
     background: #e74c3c;
     color: white;
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
 }
 
 .btn-danger:hover {
     background: #c0392b;
+    transform: translateY(-1px);
 }
 
 .btn-small {
     padding: 0.5rem 1rem;
-    font-size: 0.875rem;
+    font-size: 0.85rem;
 }
 
-/* ---------- ТАБЛИЦА ---------- */
-.table-container {
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    overflow: hidden;
+/* ---------- СЕТКА КАРТОЧЕК ОБЪЕКТОВ ---------- */
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
 }
 
-.table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.table thead {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-}
-
-.table th {
-    padding: 1rem;
-    text-align: left;
-    font-weight: 500;
-}
-
-.table td {
-    padding: 1rem;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.table tbody tr:hover {
-    background-color: #f8f9fa;
-}
-
-.loading {
+.loading-placeholder {
+    grid-column: 1 / -1;
     text-align: center;
-    color: #666;
-    padding: 2rem !important;
+    padding: 3rem;
+    color: #888;
+    font-size: 1.2rem;
+}
+
+.card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 35px rgba(102, 126, 234, 0.2);
+}
+
+/* ---------- КАРТОЧКА С ФОТО ---------- */
+.card-layout {
+    display: flex;
+    gap: 0;
+    min-height: 200px;
+}
+
+.card-image-wrapper {
+    flex: 0 0 200px;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px 0 0 16px;
+}
+
+.card-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s ease;
+}
+
+.card:hover .card-image {
+    transform: scale(1.05);
+}
+
+.card-status-badge {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    padding: 0.3rem 1rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: white;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(8px);
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.card-info-wrapper {
+    flex: 1;
+    padding: 1.2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.card-header-text {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.8rem;
+    gap: 0.5rem;
+}
+
+.card-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #2c3e50;
+    flex: 1;
+}
+
+.card-code {
+    font-size: 0.85rem;
+    color: #667eea;
+    font-weight: 600;
+    background: rgba(102, 126, 234, 0.1);
+    padding: 0.2rem 0.8rem;
+    border-radius: 12px;
+    white-space: nowrap;
+}
+
+.card-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.8rem;
+}
+
+.card-info-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: #555;
+}
+
+.card-info-icon {
+    width: 20px;
+    text-align: center;
+    color: #667eea;
+}
+
+.card-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    margin-top: auto;
 }
 
 /* ---------- СТАТУСЫ (БЕЙДЖИ) ---------- */
 .status-badge {
     padding: 0.25rem 0.75rem;
     border-radius: 20px;
-    font-size: 0.875rem;
-    font-weight: 500;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-block;
 }
 
 .status-active {
@@ -258,6 +376,40 @@ h1 {
     color: #333;
 }
 
+/* Статусы для большого бейджа на фото */
+.status-badge-large {
+    display: inline-block;
+    padding: 0.5rem 1.5rem;
+    border-radius: 25px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: white;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.status-badge-large.status-active {
+    background: rgba(39, 174, 96, 0.9);
+    color: white;
+}
+
+.status-badge-large.status-draft {
+    background: rgba(108, 117, 125, 0.9);
+    color: white;
+}
+
+.status-badge-large.status-emergency {
+    background: rgba(231, 76, 60, 0.9);
+    color: white;
+}
+
+.status-badge-large.status-archived {
+    background: rgba(52, 58, 64, 0.9);
+    color: white;
+}
+
 /* ---------- МОДАЛКА ---------- */
 .modal {
     display: none;
@@ -266,10 +418,11 @@ h1 {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0, 0, 0, 0.6);
     z-index: 1000;
     justify-content: center;
     align-items: center;
+    backdrop-filter: blur(5px);
 }
 
 .modal.active {
@@ -278,18 +431,24 @@ h1 {
 
 .modal-content {
     background: white;
-    border-radius: 15px;
+    border-radius: 20px;
     width: 90%;
-    max-width: 500px;
+    max-width: 550px;
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
     animation: slideIn 0.3s ease;
 }
 
 @keyframes slideIn {
-    from { transform: translateY(-50px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    from { 
+        transform: translateY(-30px) scale(0.95); 
+        opacity: 0; 
+    }
+    to { 
+        transform: translateY(0) scale(1); 
+        opacity: 1; 
+    }
 }
 
 .modal-header {
@@ -298,11 +457,14 @@ h1 {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border-radius: 20px 20px 0 0;
 }
 
 .modal-header h2 {
-    color: #333;
+    color: #2c3e50;
     font-size: 1.5rem;
+    font-weight: 700;
 }
 
 .modal-close {
@@ -317,11 +479,13 @@ h1 {
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    transition: background-color 0.3s;
+    transition: all 0.3s;
 }
 
 .modal-close:hover {
     background: #f0f0f0;
+    color: #e74c3c;
+    transform: rotate(90deg);
 }
 
 #objectForm {
@@ -335,8 +499,11 @@ h1 {
 .form-group label {
     display: block;
     margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: #333;
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .form-actions {
@@ -344,6 +511,110 @@ h1 {
     gap: 1rem;
     justify-content: flex-end;
     margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 2px solid #f0f0f0;
+}
+
+/* ---------- СТИЛИ ДЛЯ МОДАЛЬНОГО ОКНА ДЕТАЛЕЙ ---------- */
+.details-modal-content {
+    max-width: 600px;
+    overflow: hidden;
+}
+
+.details-modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 20px 20px 0 0;
+    border-bottom: none;
+}
+
+.details-modal-header h2 {
+    color: white;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.details-modal-header .modal-close {
+    color: white;
+}
+
+.details-modal-header .modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+/* Блок с фотографией */
+.details-photo-wrapper {
+    position: relative;
+    width: 100%;
+    height: 300px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.details-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.details-photo-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 2rem 1.5rem 1.5rem;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+}
+
+/* Сетка с информацией */
+.details-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    padding: 1.5rem;
+}
+
+.details-info-item {
+    background: #f8f9fa;
+    padding: 1.2rem;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.details-info-item:hover {
+    background: #f0f2f5;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.details-info-item.full-width {
+    grid-column: 1 / -1;
+}
+
+.details-info-label {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #888;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.details-info-value {
+    font-size: 1rem;
+    color: #2c3e50;
+    font-weight: 500;
+}
+
+/* Кнопки действий */
+.details-actions {
+    display: flex;
+    gap: 1rem;
+    padding: 1.5rem;
+    border-top: 2px solid #f0f0f0;
+    justify-content: flex-end;
 }
 
 /* ---------- ОШИБКИ ---------- */
@@ -351,10 +622,11 @@ h1 {
     background: #f8d7da;
     color: #721c24;
     padding: 1rem;
-    border-radius: 8px;
+    border-radius: 12px;
     margin-bottom: 1rem;
     border: 2px solid #f5c6cb;
     animation: shake 0.5s;
+    font-weight: 500;
 }
 
 @keyframes shake {
@@ -367,8 +639,8 @@ h1 {
 .chart-container {
     background: white;
     padding: 2rem;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     margin-top: 2rem;
 }
 
@@ -385,59 +657,124 @@ h1 {
         height: auto;
         padding: 0.5rem 1rem;
     }
+    
     .nav-brand {
         font-size: 1.2rem;
     }
+    
     .nav-links {
         gap: 0.5rem;
         flex-wrap: wrap;
     }
+    
     .nav-link {
         padding: 0.3rem 0.8rem;
         font-size: 0.9rem;
     }
+    
     .main {
         padding: 1rem;
         margin: 1rem auto;
     }
+    
     .controls {
         flex-direction: column;
     }
+    
     .search-box {
         min-width: 100%;
     }
+    
     .select {
         min-width: 100%;
     }
-    .table {
-        font-size: 0.85rem;
+    
+    .card-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
     }
-    .table th, .table td {
-        padding: 0.5rem 0.3rem;
-    }
+    
     .kpi-grid {
         grid-template-columns: 1fr 1fr;
         gap: 0.8rem;
     }
+    
     .kpi-card {
         padding: 1rem;
     }
+    
     .kpi-value {
-        font-size: 1.8rem;
+        font-size: 2rem;
     }
+    
     .btn {
         padding: 0.6rem 1rem;
         font-size: 0.9rem;
     }
+    
     .modal-content {
         width: 95%;
-        padding: 1rem;
     }
+    
     .form-actions {
         flex-direction: column;
     }
+    
     .form-actions .btn {
         width: 100%;
+    }
+    
+    .details-modal-content {
+        max-width: 95%;
+    }
+    
+    .details-photo-wrapper {
+        height: 200px;
+    }
+    
+    .details-info-grid {
+        grid-template-columns: 1fr;
+        gap: 0.8rem;
+        padding: 1rem;
+    }
+    
+    .details-actions {
+        flex-direction: column;
+        padding: 1rem;
+    }
+    
+    .details-actions .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 600px) {
+    .card-layout {
+        flex-direction: column;
+    }
+    
+    .card-image-wrapper {
+        flex: none;
+        height: 180px;
+        border-radius: 16px 16px 0 0;
+    }
+    
+    .card-image {
+        height: 100%;
+        width: 100%;
+    }
+    
+    .card-info-wrapper {
+        padding: 1rem;
+    }
+    
+    .card-actions {
+        margin-top: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .card-actions .btn {
+        flex: 1;
     }
 }
 
@@ -445,26 +782,21 @@ h1 {
     .kpi-grid {
         grid-template-columns: 1fr;
     }
-    .table thead {
-        display: none;
+    
+    .card-grid {
+        grid-template-columns: 1fr;
     }
-    .table td {
-        display: block;
-        text-align: right;
-        padding-left: 50%;
-        position: relative;
-        border-bottom: none;
+    
+    .details-photo-wrapper {
+        height: 180px;
     }
-    .table td::before {
-        content: attr(data-label);
-        position: absolute;
-        left: 0;
-        width: 50%;
-        padding-left: 0.5rem;
-        font-weight: bold;
-        text-align: left;
+    
+    .details-modal-header h2 {
+        font-size: 1.2rem;
     }
-    .table td:last-child {
-        border-bottom: 2px solid #e0e0e0;
+    
+    .status-badge-large {
+        font-size: 0.85rem;
+        padding: 0.4rem 1rem;
     }
 }

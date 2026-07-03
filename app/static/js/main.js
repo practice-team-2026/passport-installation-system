@@ -1,4 +1,3 @@
-// app/static/js/main.js
 import {
     getInstallations,
     createInstallation,
@@ -9,6 +8,7 @@ import {
 // ---------- СОСТОЯНИЕ ----------
 let installations = [];
 let editingId = null;
+let currentDetailsId = null; // ID объекта, который сейчас просматривается
 
 // ---------- ЗАГРУЗКА ДАННЫХ ----------
 async function loadInstallations() {
@@ -16,13 +16,13 @@ async function loadInstallations() {
         showLoading(true);
         installations = await getInstallations();
         updateKPICards(installations);
-        renderTable(installations);
+        renderCards(installations);
         hideError();
     } catch (error) {
         console.error('Ошибка:', error);
         showError('Не удалось загрузить данные. Проверьте, что сервер запущен (python run.py).');
         installations = [];
-        renderTable(installations);
+        renderCards(installations);
     } finally {
         showLoading(false);
     }
@@ -46,38 +46,63 @@ function updateKPICards(data) {
     document.getElementById('overdueCount').textContent = overdue;
 }
 
-// ---------- ОТРИСОВКА ТАБЛИЦЫ ----------
-function renderTable(data) {
-    const tbody = document.getElementById('tableBody');
+// ---------- ОТРИСОВКА КАРТОЧЕК С ФОТО ----------
+function renderCards(data) {
+    const grid = document.getElementById('installationsGrid');
     
     if (!data || data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="loading">Нет данных для отображения</td></tr>`;
+        grid.innerHTML = `<div class="loading-placeholder">Нет данных для отображения</div>`;
         return;
     }
     
-    tbody.innerHTML = data.map(item => `
-        <tr>
-            <td data-label="Код"><strong>${escapeHtml(item.unique_code)}</strong></td>
-            <td data-label="Название">${escapeHtml(item.name)}</td>
-            <td data-label="Город">${escapeHtml(item.city || '—')}</td>
-            <td data-label="Адрес">${escapeHtml(item.address || '—')}</td>
-            <td data-label="Статус"><span class="status-badge status-${item.status}">${getStatusText(item.status)}</span></td>
-            <td data-label="Дата ТО">${item.next_maintenance || '—'}</td>
-            <td data-label="Действия">
-                <button class="btn btn-primary btn-small" onclick="editObject('${item.id}')" title="Редактировать">✏️</button>
-                <button class="btn btn-danger btn-small" onclick="deleteObject('${item.id}')" title="Архивировать">🗑️</button>
-            </td>
-        </tr>
+    grid.innerHTML = data.map(item => `
+        <div class="card" onclick="viewDetails('${item.id}')">
+            <div class="card-layout">
+                <!-- Левая часть: фото -->
+                <div class="card-image-wrapper">
+                    <img src="${item.photo_url || '/static/img/default-installation.jpg'}" 
+                         alt="${escapeHtml(item.name)}" 
+                         class="card-image"
+                         onerror="this.src='/static/img/default-installation.jpg'">
+                    <span class="card-status-badge status-${item.status}">${getStatusText(item.status)}</span>
+                </div>
+                <!-- Правая часть: информация -->
+                <div class="card-info-wrapper">
+                    <div class="card-header-text">
+                        <span class="card-title">${escapeHtml(item.name)}</span>
+                        <span class="card-code">${escapeHtml(item.unique_code)}</span>
+                    </div>
+                    <div class="card-details">
+                        <div class="card-info-item">
+                            <span class="card-info-icon">📍</span>
+                            <span>${escapeHtml(item.city || '—')}, ${escapeHtml(item.address || '—')}</span>
+                        </div>
+                        <div class="card-info-item">
+                            <span class="card-info-icon">📅</span>
+                            <span>ТО: ${item.next_maintenance || 'Не назначено'}</span>
+                        </div>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-primary btn-small" onclick="event.stopPropagation(); editObject('${item.id}')" title="Редактировать">
+                            ✏️
+                        </button>
+                        <button class="btn btn-danger btn-small" onclick="event.stopPropagation(); deleteObject('${item.id}')" title="Архивировать">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     `).join('');
 }
 
 // ---------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ----------
 function getStatusText(status) {
     const map = {
-        'active': '🟢 Активный',
-        'draft': '⚪️ Черновик',
-        'emergency': '🔴 Аварийный',
-        'archived': '⚫️ Архивный'
+        'active': 'Активный',
+        'draft': 'Черновик',
+        'emergency': 'Аварийный',
+        'archived': 'Архивный'
     };
     return map[status] || status;
 }
@@ -99,7 +124,9 @@ function filterInstallations() {
     if (searchTerm) {
         filtered = filtered.filter(i =>
             i.name.toLowerCase().includes(searchTerm) ||
-            (i.address && i.address.toLowerCase().includes(searchTerm))
+            (i.address && i.address.toLowerCase().includes(searchTerm)) ||
+            (i.city && i.city.toLowerCase().includes(searchTerm)) ||
+            i.unique_code.toLowerCase().includes(searchTerm)
         );
     }
     
@@ -107,10 +134,10 @@ function filterInstallations() {
         filtered = filtered.filter(i => i.status === statusFilter);
     }
     
-    renderTable(filtered);
+    renderCards(filtered);
 }
 
-// ---------- МОДАЛКА: ОТКРЫТИЕ ----------
+// ---------- МОДАЛКА: СОЗДАНИЕ/РЕДАКТИРОВАНИЕ ----------
 window.openCreateModal = function() {
     editingId = null;
     document.getElementById('modalTitle').textContent = '➕ Новый объект';
@@ -118,6 +145,7 @@ window.openCreateModal = function() {
     document.getElementById('objectId').value = '';
     document.getElementById('uniqueCode').value = '';
     document.getElementById('status').value = 'draft';
+    document.getElementById('nextMaintenance').value = '';
     document.getElementById('objectModal').classList.add('active');
 };
 
@@ -125,7 +153,6 @@ window.editObject = async function(id) {
     try {
         const item = installations.find(i => i.id === id);
         if (!item) {
-            // Если нет в кэше — загружаем с сервера
             const response = await fetch(`http://localhost:5000/api/installations/${id}`);
             if (!response.ok) throw new Error('Ошибка загрузки');
             const data = await response.json();
@@ -148,16 +175,15 @@ function fillEditForm(data) {
     document.getElementById('city').value = data.city || '';
     document.getElementById('address').value = data.address || '';
     document.getElementById('status').value = data.status || 'draft';
+    document.getElementById('nextMaintenance').value = data.next_maintenance || '';
     document.getElementById('objectModal').classList.add('active');
 }
 
-// ---------- МОДАЛКА: ЗАКРЫТИЕ ----------
 window.closeModal = function() {
     document.getElementById('objectModal').classList.remove('active');
     editingId = null;
 };
 
-// ---------- МОДАЛКА: ОТПРАВКА ФОРМЫ ----------
 window.handleSubmit = async function(event) {
     event.preventDefault();
     
@@ -166,17 +192,16 @@ window.handleSubmit = async function(event) {
         name: document.getElementById('name').value.trim(),
         city: document.getElementById('city').value.trim(),
         address: document.getElementById('address').value.trim(),
-        status: document.getElementById('status').value
+        status: document.getElementById('status').value,
+        next_maintenance_date: document.getElementById('nextMaintenance').value || null
     };
     
-    // Простая валидация
     if (!formData.unique_code || !formData.name) {
         showError('Уникальный код и название обязательны для заполнения');
         return;
     }
     
     try {
-        let result;
         if (editingId) {
             await updateInstallation(editingId, formData);
         } else {
@@ -184,12 +209,94 @@ window.handleSubmit = async function(event) {
         }
         
         closeModal();
-        await loadInstallations(); // Перезагружаем список
+        await loadInstallations();
         hideError();
     } catch (error) {
         console.error('Ошибка:', error);
         showError(error.message || 'Не удалось сохранить объект');
     }
+};
+
+// ---------- МОДАЛКА: ДЕТАЛИ ОБЪЕКТА ----------
+window.viewDetails = function(id) {
+    const item = installations.find(i => i.id === id);
+    if (!item) return;
+
+    // Сохраняем ID текущего просматриваемого объекта
+    currentDetailsId = id;
+
+    // Обновляем заголовок
+    document.getElementById('detailsTitle').textContent = item.name;
+    
+    // Обновляем фото
+    const photoElement = document.getElementById('detailsPhoto');
+    photoElement.src = item.photo_url || '/static/img/default-installation.jpg';
+    photoElement.alt = item.name;
+    
+    // Обновляем статус на фото
+    const statusBadge = document.getElementById('detailsStatus');
+    statusBadge.textContent = getStatusText(item.status);
+    statusBadge.className = `status-badge-large status-${item.status}`;
+    
+    // Заполняем информацию в сетке
+    const content = document.getElementById('detailsContent');
+    content.innerHTML = `
+        <div class="details-info-item">
+            <div class="details-info-label">Уникальный код</div>
+            <div class="details-info-value"><strong>${escapeHtml(item.unique_code)}</strong></div>
+        </div>
+        
+        <div class="details-info-item">
+            <div class="details-info-label">Статус</div>
+            <div class="details-info-value">
+                <span class="status-badge status-${item.status}">${getStatusText(item.status)}</span>
+            </div>
+        </div>
+        
+        <div class="details-info-item">
+            <div class="details-info-label">Город</div>
+            <div class="details-info-value">${escapeHtml(item.city || 'Не указан')}</div>
+        </div>
+        
+        <div class="details-info-item">
+            <div class="details-info-label">Адрес</div>
+            <div class="details-info-value">${escapeHtml(item.address || 'Не указан')}</div>
+        </div>
+        
+        <div class="details-info-item">
+            <div class="details-info-label">Дата следующего ТО</div>
+            <div class="details-info-value">
+                ${item.next_maintenance ? new Date(item.next_maintenance).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Не назначено'}
+            </div>
+        </div>
+        
+        <div class="details-info-item">
+            <div class="details-info-label">Дата создания</div>
+            <div class="details-info-value">
+                ${item.created_at ? new Date(item.created_at).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}
+            </div>
+        </div>
+    `;
+    
+    // Показываем модальное окно
+    document.getElementById('detailsModal').classList.add('active');
+    
+    // Блокируем скролл на body
+    document.body.style.overflow = 'hidden';
+};
+
+// Функция для редактирования из модального окна деталей
+window.editFromDetails = function() {
+    if (currentDetailsId) {
+        closeDetailsModal();
+        editObject(currentDetailsId);
+    }
+};
+
+window.closeDetailsModal = function() {
+    document.getElementById('detailsModal').classList.remove('active');
+    document.body.style.overflow = '';
+    currentDetailsId = null;
 };
 
 // ---------- УДАЛЕНИЕ ----------
@@ -210,9 +317,9 @@ window.deleteObject = async function(id) {
 
 // ---------- УПРАВЛЕНИЕ СОСТОЯНИЕМ ----------
 function showLoading(isLoading) {
-    const tbody = document.getElementById('tableBody');
+    const grid = document.getElementById('installationsGrid');
     if (isLoading) {
-        tbody.innerHTML = `<tr><td colspan="7" class="loading">⏳ Загрузка данных...</td></tr>`;
+        grid.innerHTML = `<div class="loading-placeholder">⏳ Загрузка данных...</div>`;
     }
 }
 
@@ -233,21 +340,30 @@ function hideError() {
 document.addEventListener('DOMContentLoaded', () => {
     loadInstallations();
     
-    // Обработчики событий
     document.getElementById('searchInput').addEventListener('input', filterInstallations);
     document.getElementById('statusFilter').addEventListener('change', filterInstallations);
     
-    // Закрытие модалки по клику на оверлей
-    document.getElementById('objectModal').addEventListener('click', (e) => {
-        if (e.target === document.getElementById('objectModal')) {
-            closeModal();
+    // Закрытие модалок по клику на оверлей
+    window.addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal')) {
+            e.target.classList.remove('active');
+            document.body.style.overflow = '';
+            if (e.target.id === 'detailsModal') {
+                currentDetailsId = null;
+            }
         }
     });
     
-    // Закрытие модалки по Escape
+    // Закрытие модалок по Escape
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            closeModal();
+            document.querySelectorAll('.modal.active').forEach(m => {
+                m.classList.remove('active');
+                document.body.style.overflow = '';
+                if (m.id === 'detailsModal') {
+                    currentDetailsId = null;
+                }
+            });
         }
     });
 });

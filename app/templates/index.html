@@ -37,29 +37,12 @@
     <!-- Сообщения об ошибках -->
     <div id="errorMessage" class="error-message" style="display: none;"></div>
 
-    <!-- Таблица объектов -->
-    <div class="table-container">
-        <table class="table" id="installationsTable">
-            <thead>
-                <tr>
-                    <th>Код</th>
-                    <th>Название</th>
-                    <th>Город</th>
-                    <th>Адрес</th>
-                    <th>Статус</th>
-                    <th>Дата ТО</th>
-                    <th>Действия</th>
-                </tr>
-            </thead>
-            <tbody id="tableBody">
-                <tr>
-                    <td colspan="7" class="loading">⏳ Загрузка данных...</td>
-                </tr>
-            </tbody>
-        </table>
+    <!-- Сетка карточек объектов -->
+    <div class="card-grid" id="installationsGrid">
+        <div class="loading-placeholder">⏳ Загрузка данных...</div>
     </div>
 
-    <!-- Модальное окно -->
+    <!-- Модальное окно для создания/редактирования -->
     <div class="modal" id="objectModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -93,11 +76,42 @@
                         <option value="archived">Архивный</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label for="nextMaintenance">Дата следующего ТО</label>
+                    <input type="date" id="nextMaintenance" class="input">
+                </div>
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
                     <button type="submit" class="btn btn-primary">Сохранить</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно для просмотра деталей -->
+    <div class="modal" id="detailsModal">
+        <div class="modal-content details-modal-content">
+            <div class="modal-header details-modal-header">
+                <h2 id="detailsTitle">Детали объекта</h2>
+                <button class="modal-close" onclick="closeDetailsModal()">&times;</button>
+            </div>
+            <div class="details-photo-wrapper">
+                <img id="detailsPhoto" src="" alt="Фото установки" class="details-photo" onerror="this.src='/static/img/default-installation.jpg'">
+                <div class="details-photo-overlay">
+                    <span id="detailsStatus" class="status-badge-large"></span>
+                </div>
+            </div>
+            <div class="details-info-grid" id="detailsContent">
+                <!-- Контент будет загружен динамически -->
+            </div>
+            <div class="details-actions">
+                <button class="btn btn-primary" id="detailsEditBtn" onclick="editFromDetails()">
+                    ✏️ Редактировать объект
+                </button>
+                <button class="btn btn-secondary" onclick="closeDetailsModal()">
+                    Закрыть
+                </button>
+            </div>
         </div>
     </div>
 {% endblock %}
