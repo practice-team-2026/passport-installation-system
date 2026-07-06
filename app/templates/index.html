@@ -49,24 +49,29 @@
                 <h2 id="modalTitle">Новый объект</h2>
                 <button class="modal-close" onclick="closeModal()">&times;</button>
             </div>
-            <form id="objectForm" onsubmit="handleSubmit(event)">
+            <form id="objectForm" onsubmit="handleSubmit(event)" enctype="multipart/form-data">
                 <input type="hidden" id="objectId">
+                
                 <div class="form-group">
                     <label for="uniqueCode">Уникальный код *</label>
                     <input type="text" id="uniqueCode" class="input" required placeholder="ПАС-031">
                 </div>
+                
                 <div class="form-group">
                     <label for="name">Название *</label>
                     <input type="text" id="name" class="input" required placeholder="Вентиляционная установка">
                 </div>
+                
                 <div class="form-group">
                     <label for="city">Город</label>
                     <input type="text" id="city" class="input" placeholder="Москва">
                 </div>
+                
                 <div class="form-group">
                     <label for="address">Адрес</label>
                     <input type="text" id="address" class="input" placeholder="ул. Тверская, 12">
                 </div>
+                
                 <div class="form-group">
                     <label for="status">Статус</label>
                     <select id="status" class="select">
@@ -76,13 +81,26 @@
                         <option value="archived">Архивный</option>
                     </select>
                 </div>
+                
+                <!-- 👇 НОВОЕ ПОЛЕ ДЛЯ ЗАГРУЗКИ ФОТО -->
+                <div class="form-group">
+                    <label for="photoFile">Фото</label>
+                    <input type="file" id="photoFile" class="input" accept="image/*">
+                    <small style="color: #888; display: block; margin-top: 4px;">
+                        Поддерживаются: PNG, JPG, JPEG, GIF. Максимум 16 МБ
+                    </small>
+                    <!-- 👇 Скрытое поле для хранения текущего URL фото -->
+                    <input type="hidden" id="currentPhotoUrl" value="">
+                </div>
+                
                 <div class="form-group">
                     <label for="nextMaintenance">Дата следующего ТО</label>
                     <input type="date" id="nextMaintenance" class="input">
                 </div>
+                
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
-                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">Сохранить</button>
                 </div>
             </form>
         </div>

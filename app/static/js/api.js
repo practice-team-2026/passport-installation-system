@@ -1,7 +1,7 @@
 // app/static/js/api.js
 // Единый слой для общения с бэкендом
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = '/api';
 
 /**
  * Получить список всех установок

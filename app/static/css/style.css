@@ -800,3 +800,176 @@ h1 {
         padding: 0.4rem 1rem;
     }
 }
+
+/* ---------- СТИЛИ ДЛЯ ПОЛЯ ЗАГРУЗКИ ФАЙЛОВ ---------- */
+input[type="file"] {
+    padding: 0.75rem 1rem;
+    border: 2px dashed #e0e0e0;
+    border-radius: 12px;
+    background: #f8f9fa;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+input[type="file"]:hover {
+    border-color: #667eea;
+    background: #f0f2f5;
+}
+
+input[type="file"]::-webkit-file-upload-button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    margin-right: 1rem;
+    transition: all 0.3s;
+}
+
+input[type="file"]::-webkit-file-upload-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* ---------- УСПЕШНЫЕ СООБЩЕНИЯ ---------- */
+.success-message {
+    background: #d4edda;
+    color: #155724;
+    padding: 1rem;
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    border: 2px solid #c3e6cb;
+    animation: shake 0.5s;
+    font-weight: 500;
+}
+
+/* ---------- СКРОЛЛ В МОДАЛЬНЫХ ОКНАХ ---------- */
+
+/* Общие стили для модальных окон */
+.modal-content {
+    max-height: 90vh;
+    overflow-y: auto; /* 👈 Вертикальный скролл, если контент не помещается */
+}
+
+/* Стили для модалки создания/редактирования */
+#objectModal .modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* Стили для модалки деталей */
+.details-modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Блок с фото фиксированной высоты */
+.details-photo-wrapper {
+    flex-shrink: 0; /* 👈 Фото не сжимается */
+    height: 250px;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.details-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* Сетка информации — скроллится, если не помещается */
+.details-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1 1 auto; /* 👈 Занимает оставшееся место и скроллится */
+}
+
+.details-info-item {
+    background: #f8f9fa;
+    padding: 1.2rem;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    word-break: break-word; /* 👈 Перенос длинных слов */
+}
+
+.details-info-item.full-width {
+    grid-column: 1 / -1;
+}
+
+.details-info-label {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #888;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.details-info-value {
+    font-size: 1rem;
+    color: #2c3e50;
+    font-weight: 500;
+}
+
+/* Кнопки действий */
+.details-actions {
+    flex-shrink: 0; /* 👈 Кнопки не сжимаются */
+    display: flex;
+    gap: 1rem;
+    padding: 1.5rem;
+    border-top: 2px solid #f0f0f0;
+    justify-content: flex-end;
+}
+
+/* ---------- АДАПТИВ ДЛЯ МОДАЛЬНЫХ ОКОН ---------- */
+@media (max-width: 768px) {
+    .modal-content {
+        max-height: 95vh;
+        width: 95%;
+        border-radius: 12px;
+    }
+    
+    .details-photo-wrapper {
+        height: 200px;
+    }
+    
+    .details-info-grid {
+        grid-template-columns: 1fr;
+        gap: 0.8rem;
+        padding: 1rem;
+    }
+    
+    .details-actions {
+        flex-direction: column;
+        padding: 1rem;
+    }
+    
+    .details-actions .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .details-photo-wrapper {
+        height: 180px;
+    }
+    
+    .details-modal-header h2 {
+        font-size: 1.2rem;
+    }
+    
+    .status-badge-large {
+        font-size: 0.85rem;
+        padding: 0.4rem 1rem;
+    }
+}

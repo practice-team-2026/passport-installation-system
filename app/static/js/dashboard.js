@@ -4,6 +4,12 @@ import { getDashboardStats } from './api.js';
 let maintenanceChart = null;
 
 async function loadDashboard() {
+    // Проверяем, что мы на странице дашборда
+    if (!document.getElementById('dashboardKpi')) {
+        console.log('ℹ️ Дашборд не активен, пропускаем загрузку');
+        return;
+    }
+    
     try {
         const data = await getDashboardStats();
         updateKPICards(data);
@@ -16,20 +22,26 @@ async function loadDashboard() {
 }
 
 function updateKPICards(data) {
-    document.getElementById('totalStats').textContent = data.total || 0;
-    document.getElementById('activeStats').textContent = data.active || 0;
-    document.getElementById('overdueStats').textContent = data.overdue || 0;
+    const totalEl = document.getElementById('totalStats');
+    const activeEl = document.getElementById('activeStats');
+    const overdueEl = document.getElementById('overdueStats');
+    
+    if (totalEl) totalEl.textContent = data.total || 0;
+    if (activeEl) activeEl.textContent = data.active || 0;
+    if (overdueEl) overdueEl.textContent = data.overdue || 0;
 }
 
 function renderChart(chartData) {
-    const ctx = document.getElementById('maintenanceChart').getContext('2d');
+    const canvas = document.getElementById('maintenanceChart');
+    if (!canvas) return; // Если канваса нет — выходим
+    
+    const ctx = canvas.getContext('2d');
     
     if (maintenanceChart) {
         maintenanceChart.destroy();
     }
     
     if (!chartData || !chartData.labels || chartData.labels.length === 0) {
-        // Показываем заглушку, если данных нет
         maintenanceChart = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -129,12 +141,17 @@ function renderChart(chartData) {
 
 function showError(message) {
     const errorDiv = document.getElementById('dashboardError');
-    errorDiv.textContent = message;
-    errorDiv.style.display = 'block';
+    if (errorDiv) {
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+    }
 }
 
 function hideError() {
-    document.getElementById('dashboardError').style.display = 'none';
+    const errorDiv = document.getElementById('dashboardError');
+    if (errorDiv) {
+        errorDiv.style.display = 'none';
+    }
 }
 
 document.addEventListener('DOMContentLoaded', loadDashboard);

@@ -3,6 +3,7 @@ from app import db
 from app.models.installation import Installation, MaintenanceEvent
 from datetime import datetime, timedelta
 from sqlalchemy import func
+import uuid
 
 def get_total_installations():
     """
@@ -140,3 +141,81 @@ def get_installation_stats(installation_id):
         'scheduled': scheduled,
         'overdue': overdue
     }
+
+def create_or_update_maintenance_event(installation_id, date, engineer=None, description=None, hours=2.0):
+    """
+    Создаёт или обновляет событие ТО для установки.
+    Если событие уже существует с датой в будущем — обновляет его.
+    Если нет — создаёт новое.
+    """
+    if not date:
+        return None
+    
+    # Ищем существующее запланированное событие
+    existing = MaintenanceEvent.query.filter_by(
+        installation_id=installation_id,
+        status='scheduled'
+    ).order_by(MaintenanceEvent.planned_date).first()
+    
+    if existing:
+        # Обновляем дату
+        existing.planned_date = date
+        if engineer:
+            existing.engineer = engineer
+        if description:
+            existing.description = description
+        existing.hours_planned = hours
+        return existing
+    else:
+        # Создаём новое событие
+        event = MaintenanceEvent(
+            id=str(uuid.uuid4()),
+            installation_id=installation_id,
+            type='scheduled',
+            status='scheduled',
+            planned_date=date,
+            engineer=engineer or 'Не назначен',
+            description=description or 'Плановое техническое обслуживание',
+            hours_planned=hours
+        )
+        db.session.add(event)
+        return event
+    
+def create_or_update_maintenance_event(installation_id, date, engineer=None, description=None, hours=2.0):
+    """
+    Создаёт или обновляет событие ТО для установки.
+    Если событие уже существует с датой в будущем — обновляет его.
+    Если нет — создаёт новое.
+    """
+    if not date:
+        return None
+    
+    # Ищем существующее запланированное событие
+    existing = MaintenanceEvent.query.filter_by(
+        installation_id=installation_id,
+        status='scheduled'
+    ).order_by(MaintenanceEvent.planned_date).first()
+    
+    if existing:
+        # Обновляем дату
+        existing.planned_date = date
+        if engineer:
+            existing.engineer = engineer
+        if description:
+            existing.description = description
+        existing.hours_planned = hours
+        return existing
+    else:
+        # Создаём новое событие
+        event = MaintenanceEvent(
+            id=str(uuid.uuid4()),
+            installation_id=installation_id,
+            type='scheduled',
+            status='scheduled',
+            planned_date=date,
+            engineer=engineer or 'Не назначен',
+            description=description or 'Плановое техническое обслуживание',
+            hours_planned=hours
+        )
+        db.session.add(event)
+        return event

@@ -5,8 +5,51 @@ from app.models.installation import Installation, Location, Client, Equipment, M
 from datetime import datetime
 from sqlalchemy import func
 import uuid
+import os
+from werkzeug.utils import secure_filename
 
 bp = Blueprint('api', __name__)
+
+# ---------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ЗАГРУЗКИ ФОТО ----------
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# ---------- НОВАЯ РУЧКА: ЗАГРУЗКА ФОТО ----------
+@bp.route('/upload-photo', methods=['POST'])
+def upload_photo():
+    """Загрузить фото для объекта"""
+    if 'photo' not in request.files:
+        return jsonify({'error': 'Файл не найден'}), 400
+    
+    file = request.files['photo']
+    if file.filename == '':
+        return jsonify({'error': 'Файл не выбран'}), 400
+    
+    if not allowed_file(file.filename):
+        return jsonify({
+            'error': 'Неподдерживаемый формат. Разрешены: png, jpg, jpeg, gif'
+        }), 400
+    
+    # Генерируем уникальное имя файла
+    filename = secure_filename(file.filename)
+    unique_filename = f"{uuid.uuid4().hex}_{filename}"
+    filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
+    
+    # Убеждаемся, что папка существует
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    
+    # Сохраняем файл
+    file.save(filepath)
+    
+    # Возвращаем путь для сохранения в БД
+    return jsonify({
+        'message': 'Фото успешно загружено',
+        'photo_url': f"/uploads/{unique_filename}"
+    }), 200
+
 
 # ---------- ПОЛУЧИТЬ СПИСОК ВСЕХ УСТАНОВОК ----------
 @bp.route('/installations', methods=['GET'])
@@ -40,6 +83,7 @@ def get_installations():
             'address': inst.location.address if inst.location else '',
             'next_maintenance': next_maintenance or None,
             'equipment_count': equipment_count,
+            'photo_url': inst.photo_url,
             'created_at': inst.created_at.strftime('%Y-%m-%d %H:%M:%S') if inst.created_at else None
         })
     return jsonify(result)
@@ -81,6 +125,7 @@ def get_installation(id):
         'name': inst.name,
         'status': inst.status,
         'description': inst.description,
+        'photo_url': inst.photo_url,
         'next_maintenance_date': inst.next_maintenance_date.strftime('%Y-%m-%d') if inst.next_maintenance_date else None,
         'location': {
             'id': inst.location.id if inst.location else None,
@@ -104,27 +149,15 @@ def get_installation(id):
         'updated_at': inst.updated_at.strftime('%Y-%m-%d %H:%M:%S') if inst.updated_at else None
     })
 
-    # ---------- СОЗДАНИЕ НОВОЙ УСТАНОВКИ ----------
+
+# ---------- СОЗДАНИЕ НОВОЙ УСТАНОВКИ ----------
 @bp.route('/installations', methods=['POST'])
 def create_installation():
     """
     Создание новой установки с полной информацией.
-    Ожидает JSON:
-    {
-        "unique_code": "ПАС-031",
-        "name": "Вентиляционная установка",
-        "city": "Москва",
-        "address": "ул. Тверская, 12",
-        "status": "active",
-        "description": "Описание объекта",
-        "client_name": "ООО ТехноСтрой",
-        "client_contact": "Иванов Иван",
-        "client_phone": "+7 999 123-45-67",
-        "client_email": "client@mail.ru",
-        "next_maintenance_date": "2026-08-15"
-    }
     """
     data = request.json
+    print("📥 Получены данные:", data)  # 👈 Добавляем логирование
     
     # Валидация обязательных полей
     required_fields = ['unique_code', 'name']
@@ -171,10 +204,12 @@ def create_installation():
         try:
             next_maintenance_date = datetime.strptime(data['next_maintenance_date'], '%Y-%m-%d').date()
         except ValueError:
-            # Если дата невалидна — просто игнорируем
             pass
     
-    # Создание установки
+    # 👇 СОЗДАНИЕ УСТАНОВКИ (ЗДЕСЬ ВАЖНО)
+    photo_url = data.get('photo_url')  # Получаем путь
+    print(f"📸 photo_url получен: {photo_url}")  # 👈 Логируем
+    
     installation = Installation(
         id=str(uuid.uuid4()),
         unique_code=data['unique_code'],
@@ -183,24 +218,22 @@ def create_installation():
         description=data.get('description', ''),
         location_id=location.id if location else None,
         client_id=client.id if client else None,
-        next_maintenance_date=next_maintenance_date
+        next_maintenance_date=next_maintenance_date,
+        photo_url=photo_url  # 👈 СОХРАНЯЕМ В БАЗУ
     )
     db.session.add(installation)
     db.session.flush()
     
     # Создание события ТО (если указана дата)
     if next_maintenance_date:
-        event = MaintenanceEvent(
-            id=str(uuid.uuid4()),
+        from app.services.analytics import create_or_update_maintenance_event
+        create_or_update_maintenance_event(
             installation_id=installation.id,
-            type='scheduled',
-            status='scheduled',
-            planned_date=next_maintenance_date,
+            date=next_maintenance_date,
             engineer=data.get('engineer', 'Не назначен'),
             description=data.get('maintenance_description', 'Плановое техническое обслуживание'),
-            hours_planned=data.get('hours_planned', 2.0)
+            hours=data.get('hours_planned', 2.0)
         )
-        db.session.add(event)
     
     # Сохранение всех изменений
     try:
@@ -215,6 +248,7 @@ def create_installation():
         'unique_code': installation.unique_code,
         'created_at': installation.created_at.strftime('%Y-%m-%d %H:%M:%S')
     }), 201
+    
 
 
 # ---------- ОБНОВЛЕНИЕ УСТАНОВКИ ----------
@@ -231,6 +265,9 @@ def update_installation(id):
     inst.name = data.get('name', inst.name)
     inst.status = data.get('status', inst.status)
     inst.description = data.get('description', inst.description)
+    
+    if 'photo_url' in data:
+        inst.photo_url = data.get('photo_url')
     
     # Обновление даты ТО
     if 'next_maintenance_date' in data:
@@ -253,7 +290,6 @@ def update_installation(id):
         if data.get('gps_lon'):
             inst.location.gps_lon = data.get('gps_lon')
     elif data.get('city') or data.get('address'):
-        # Если локации не было, но данные пришли — создаём
         location = Location(
             id=str(uuid.uuid4()),
             country=data.get('country', 'Россия'),
@@ -274,7 +310,6 @@ def update_installation(id):
         inst.client.phone = data.get('client_phone', inst.client.phone)
         inst.client.email = data.get('client_email', inst.client.email)
     elif data.get('client_name') and not inst.client:
-        # Если клиента не было, но данные пришли — создаём
         client = Client(
             id=str(uuid.uuid4()),
             name=data['client_name'],
@@ -288,42 +323,25 @@ def update_installation(id):
     
     # Если дата ТО изменилась — обновляем или создаём событие
     if 'next_maintenance_date' in data and data['next_maintenance_date']:
-        # Ищем существующее запланированное событие ТО
-        existing_event = MaintenanceEvent.query.filter_by(
-            installation_id=inst.id,
-            status='scheduled'
-        ).order_by(MaintenanceEvent.planned_date).first()
-        
-        if existing_event:
-            # Обновляем дату существующего события
-            try:
-                existing_event.planned_date = datetime.strptime(data['next_maintenance_date'], '%Y-%m-%d').date()
-            except ValueError:
-                pass
-        else:
-            # Создаём новое событие
-            try:
-                new_date = datetime.strptime(data['next_maintenance_date'], '%Y-%m-%d').date()
-                event = MaintenanceEvent(
-                    id=str(uuid.uuid4()),
-                    installation_id=inst.id,
-                    type='scheduled',
-                    status='scheduled',
-                    planned_date=new_date,
-                    engineer=data.get('engineer', 'Не назначен'),
-                    description='Плановое техническое обслуживание',
-                    hours_planned=data.get('hours_planned', 2.0)
-                )
-                db.session.add(event)
-            except ValueError:
-                pass
+        try:
+            from app.services.analytics import create_or_update_maintenance_event
+            new_date = datetime.strptime(data['next_maintenance_date'], '%Y-%m-%d').date()
+            create_or_update_maintenance_event(
+                installation_id=inst.id,
+                date=new_date,
+                engineer=data.get('engineer', 'Не назначен'),
+                description='Плановое техническое обслуживание',
+                hours=data.get('hours_planned', 2.0)
+            )
+        except ValueError:
+            pass
     
     try:
         db.session.commit()
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Ошибка при сохранении: {str(e)}'}), 500
-
+    
     return jsonify({
         'message': 'Установка успешно обновлена',
         'id': inst.id
@@ -356,41 +374,15 @@ def delete_installation(id):
 # ---------- АНАЛИТИКА ДЛЯ ДАШБОРДА ----------
 @bp.route('/dashboard/stats', methods=['GET'])
 def get_dashboard_stats():
-    """Получить статистику для дашборда"""
+    """Получить статистику для дашборда (использует analytics сервис)"""
     try:
-        # Общее количество установок
-        total = Installation.query.count()
-        
-        # Количество активных установок
-        active = Installation.query.filter_by(status='active').count()
-        
-        # Количество просроченных ТО
-        today = datetime.now().date()
-        overdue = MaintenanceEvent.query.filter(
-            MaintenanceEvent.planned_date < today,
-            MaintenanceEvent.status == 'scheduled'
-        ).count()
-        
-        # Данные для графика (группировка по месяцам на 6 месяцев вперёд)
-        monthly_data = db.session.query(
-            func.strftime('%Y-%m', MaintenanceEvent.planned_date).label('month'),
-            func.count(MaintenanceEvent.id).label('count')
-        ).filter(
-            MaintenanceEvent.planned_date >= today,
-            MaintenanceEvent.status == 'scheduled'
-        ).group_by('month').order_by('month').limit(6).all()
-        
-        chart_data = {
-            'labels': [row.month for row in monthly_data] if monthly_data else [],
-            'values': [row.count for row in monthly_data] if monthly_data else []
-        }
-        
+        from app.services.analytics import get_dashboard_stats as get_analytics_stats
+        stats = get_analytics_stats()
         return jsonify({
-            'total': total,
-            'active': active,
-            'overdue': overdue,
-            'chart': chart_data
+            'total': stats['total'],
+            'active': stats['active'],
+            'overdue': stats['overdue'],
+            'chart': stats['chart']
         }), 200
-        
     except Exception as e:
         return jsonify({'error': f'Ошибка получения статистики: {str(e)}'}), 500

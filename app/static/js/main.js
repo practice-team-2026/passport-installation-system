@@ -8,10 +8,17 @@ import {
 // ---------- СОСТОЯНИЕ ----------
 let installations = [];
 let editingId = null;
-let currentDetailsId = null; // ID объекта, который сейчас просматривается
+let currentDetailsId = null;
+let isSubmitting = false; // Флаг для предотвращения двойной отправки
 
 // ---------- ЗАГРУЗКА ДАННЫХ ----------
 async function loadInstallations() {
+    // Проверяем, что мы на главной странице
+    if (!document.getElementById('installationsGrid')) {
+        console.log('ℹ️ Главная страница не активна, пропускаем загрузку');
+        return;
+    }
+    
     try {
         showLoading(true);
         installations = await getInstallations();
@@ -41,14 +48,19 @@ function updateKPICards(data) {
         return false;
     }).length;
     
-    document.getElementById('totalCount').textContent = total;
-    document.getElementById('activeCount').textContent = active;
-    document.getElementById('overdueCount').textContent = overdue;
+    const totalEl = document.getElementById('totalCount');
+    const activeEl = document.getElementById('activeCount');
+    const overdueEl = document.getElementById('overdueCount');
+    
+    if (totalEl) totalEl.textContent = total;
+    if (activeEl) activeEl.textContent = active;
+    if (overdueEl) overdueEl.textContent = overdue;
 }
 
-// ---------- ОТРИСОВКА КАРТОЧЕК С ФОТО ----------
+// ---------- ОТРИСОВКА КАРТОЧЕК ----------
 function renderCards(data) {
     const grid = document.getElementById('installationsGrid');
+    if (!grid) return;
     
     if (!data || data.length === 0) {
         grid.innerHTML = `<div class="loading-placeholder">Нет данных для отображения</div>`;
@@ -58,7 +70,6 @@ function renderCards(data) {
     grid.innerHTML = data.map(item => `
         <div class="card" onclick="viewDetails('${item.id}')">
             <div class="card-layout">
-                <!-- Левая часть: фото -->
                 <div class="card-image-wrapper">
                     <img src="${item.photo_url || '/static/img/default-installation.jpg'}" 
                          alt="${escapeHtml(item.name)}" 
@@ -66,7 +77,6 @@ function renderCards(data) {
                          onerror="this.src='/static/img/default-installation.jpg'">
                     <span class="card-status-badge status-${item.status}">${getStatusText(item.status)}</span>
                 </div>
-                <!-- Правая часть: информация -->
                 <div class="card-info-wrapper">
                     <div class="card-header-text">
                         <span class="card-title">${escapeHtml(item.name)}</span>
@@ -116,8 +126,8 @@ function escapeHtml(text) {
 
 // ---------- ФИЛЬТРАЦИЯ ----------
 function filterInstallations() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const statusFilter = document.getElementById('statusFilter').value;
+    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+    const statusFilter = document.getElementById('statusFilter')?.value || '';
     
     let filtered = installations;
     
@@ -137,7 +147,7 @@ function filterInstallations() {
     renderCards(filtered);
 }
 
-// ---------- МОДАЛКА: СОЗДАНИЕ/РЕДАКТИРОВАНИЕ ----------
+// ---------- МОДАЛКА: СОЗДАНИЕ ----------
 window.openCreateModal = function() {
     editingId = null;
     document.getElementById('modalTitle').textContent = '➕ Новый объект';
@@ -146,14 +156,19 @@ window.openCreateModal = function() {
     document.getElementById('uniqueCode').value = '';
     document.getElementById('status').value = 'draft';
     document.getElementById('nextMaintenance').value = '';
+    document.getElementById('photoFile').value = '';
+    document.getElementById('currentPhotoUrl').value = '';
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('submitBtn').textContent = 'Сохранить';
     document.getElementById('objectModal').classList.add('active');
 };
 
+// ---------- МОДАЛКА: РЕДАКТИРОВАНИЕ ----------
 window.editObject = async function(id) {
     try {
         const item = installations.find(i => i.id === id);
         if (!item) {
-            const response = await fetch(`http://localhost:5000/api/installations/${id}`);
+            const response = await fetch(`/api/installations/${id}`);
             if (!response.ok) throw new Error('Ошибка загрузки');
             const data = await response.json();
             fillEditForm(data);
@@ -176,32 +191,77 @@ function fillEditForm(data) {
     document.getElementById('address').value = data.address || '';
     document.getElementById('status').value = data.status || 'draft';
     document.getElementById('nextMaintenance').value = data.next_maintenance || '';
+    document.getElementById('currentPhotoUrl').value = data.photo_url || '';
+    document.getElementById('photoFile').value = '';
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('submitBtn').textContent = 'Сохранить';
     document.getElementById('objectModal').classList.add('active');
 }
 
 window.closeModal = function() {
     document.getElementById('objectModal').classList.remove('active');
     editingId = null;
+    isSubmitting = false;
 };
 
+// ---------- МОДАЛКА: ОТПРАВКА ФОРМЫ ----------
 window.handleSubmit = async function(event) {
     event.preventDefault();
     
-    const formData = {
-        unique_code: document.getElementById('uniqueCode').value.trim(),
-        name: document.getElementById('name').value.trim(),
-        city: document.getElementById('city').value.trim(),
-        address: document.getElementById('address').value.trim(),
-        status: document.getElementById('status').value,
-        next_maintenance_date: document.getElementById('nextMaintenance').value || null
-    };
+    // Защита от двойной отправки
+    if (isSubmitting) return;
+    isSubmitting = true;
     
-    if (!formData.unique_code || !formData.name) {
-        showError('Уникальный код и название обязательны для заполнения');
-        return;
-    }
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = '⏳ Сохранение...';
     
     try {
+        // 1. Сначала загружаем фото (если выбрано)
+        const fileInput = document.getElementById('photoFile');
+        let photoUrl = document.getElementById('currentPhotoUrl').value || null;
+        
+        if (fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            
+            // Проверка размера файла (16 MB)
+            if (file.size > 16 * 1024 * 1024) {
+                throw new Error('Файл слишком большой. Максимальный размер — 16 МБ.');
+            }
+            
+            const uploadFormData = new FormData();
+            uploadFormData.append('photo', file);
+            
+            const uploadResponse = await fetch('/api/upload-photo', {
+                method: 'POST',
+                body: uploadFormData
+            });
+            
+            if (!uploadResponse.ok) {
+                const errorData = await uploadResponse.json();
+                throw new Error(errorData.error || 'Ошибка загрузки фото');
+            }
+            
+            const uploadResult = await uploadResponse.json();
+            photoUrl = uploadResult.photo_url;
+        }
+        
+        // 2. Собираем данные объекта
+        const formData = {
+            unique_code: document.getElementById('uniqueCode').value.trim(),
+            name: document.getElementById('name').value.trim(),
+            city: document.getElementById('city').value.trim(),
+            address: document.getElementById('address').value.trim(),
+            status: document.getElementById('status').value,
+            next_maintenance_date: document.getElementById('nextMaintenance').value || null,
+            photo_url: photoUrl
+        };
+        
+        if (!formData.unique_code || !formData.name) {
+            throw new Error('Уникальный код и название обязательны для заполнения');
+        }
+        
+        // 3. Создаём или обновляем объект
         if (editingId) {
             await updateInstallation(editingId, formData);
         } else {
@@ -211,9 +271,15 @@ window.handleSubmit = async function(event) {
         closeModal();
         await loadInstallations();
         hideError();
+        showSuccess('Объект успешно сохранён!');
+        
     } catch (error) {
         console.error('Ошибка:', error);
         showError(error.message || 'Не удалось сохранить объект');
+    } finally {
+        isSubmitting = false;
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Сохранить';
     }
 };
 
@@ -222,70 +288,66 @@ window.viewDetails = function(id) {
     const item = installations.find(i => i.id === id);
     if (!item) return;
 
-    // Сохраняем ID текущего просматриваемого объекта
     currentDetailsId = id;
-
-    // Обновляем заголовок
     document.getElementById('detailsTitle').textContent = item.name;
     
-    // Обновляем фото
     const photoElement = document.getElementById('detailsPhoto');
-    photoElement.src = item.photo_url || '/static/img/default-installation.jpg';
-    photoElement.alt = item.name;
+    if (photoElement) {
+        photoElement.src = item.photo_url || '/static/img/default-installation.jpg';
+        photoElement.alt = item.name;
+    }
     
-    // Обновляем статус на фото
     const statusBadge = document.getElementById('detailsStatus');
-    statusBadge.textContent = getStatusText(item.status);
-    statusBadge.className = `status-badge-large status-${item.status}`;
+    if (statusBadge) {
+        statusBadge.textContent = getStatusText(item.status);
+        statusBadge.className = `status-badge-large status-${item.status}`;
+    }
     
-    // Заполняем информацию в сетке
     const content = document.getElementById('detailsContent');
-    content.innerHTML = `
-        <div class="details-info-item">
-            <div class="details-info-label">Уникальный код</div>
-            <div class="details-info-value"><strong>${escapeHtml(item.unique_code)}</strong></div>
-        </div>
-        
-        <div class="details-info-item">
-            <div class="details-info-label">Статус</div>
-            <div class="details-info-value">
-                <span class="status-badge status-${item.status}">${getStatusText(item.status)}</span>
+    if (content) {
+        content.innerHTML = `
+            <div class="details-info-item">
+                <div class="details-info-label">Уникальный код</div>
+                <div class="details-info-value"><strong>${escapeHtml(item.unique_code)}</strong></div>
             </div>
-        </div>
-        
-        <div class="details-info-item">
-            <div class="details-info-label">Город</div>
-            <div class="details-info-value">${escapeHtml(item.city || 'Не указан')}</div>
-        </div>
-        
-        <div class="details-info-item">
-            <div class="details-info-label">Адрес</div>
-            <div class="details-info-value">${escapeHtml(item.address || 'Не указан')}</div>
-        </div>
-        
-        <div class="details-info-item">
-            <div class="details-info-label">Дата следующего ТО</div>
-            <div class="details-info-value">
-                ${item.next_maintenance ? new Date(item.next_maintenance).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Не назначено'}
+            
+            <div class="details-info-item">
+                <div class="details-info-label">Статус</div>
+                <div class="details-info-value">
+                    <span class="status-badge status-${item.status}">${getStatusText(item.status)}</span>
+                </div>
             </div>
-        </div>
-        
-        <div class="details-info-item">
-            <div class="details-info-label">Дата создания</div>
-            <div class="details-info-value">
-                ${item.created_at ? new Date(item.created_at).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}
+            
+            <div class="details-info-item">
+                <div class="details-info-label">Город</div>
+                <div class="details-info-value">${escapeHtml(item.city || 'Не указан')}</div>
             </div>
-        </div>
-    `;
+            
+            <div class="details-info-item">
+                <div class="details-info-label">Адрес</div>
+                <div class="details-info-value">${escapeHtml(item.address || 'Не указан')}</div>
+            </div>
+            
+            <div class="details-info-item">
+                <div class="details-info-label">Дата следующего ТО</div>
+                <div class="details-info-value">
+                    ${item.next_maintenance ? new Date(item.next_maintenance).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Не назначено'}
+                </div>
+            </div>
+            
+            <div class="details-info-item">
+                <div class="details-info-label">Дата создания</div>
+                <div class="details-info-value">
+                    ${item.created_at ? new Date(item.created_at).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}
+                </div>
+            </div>
+        `;
+    }
     
-    // Показываем модальное окно
     document.getElementById('detailsModal').classList.add('active');
-    
-    // Блокируем скролл на body
     document.body.style.overflow = 'hidden';
 };
 
-// Функция для редактирования из модального окна деталей
 window.editFromDetails = function() {
     if (currentDetailsId) {
         closeDetailsModal();
@@ -309,6 +371,7 @@ window.deleteObject = async function(id) {
         await deleteInstallation(id);
         await loadInstallations();
         hideError();
+        showSuccess('Объект успешно архивирован');
     } catch (error) {
         console.error('Ошибка:', error);
         showError(error.message || 'Не удалось удалить объект');
@@ -318,6 +381,7 @@ window.deleteObject = async function(id) {
 // ---------- УПРАВЛЕНИЕ СОСТОЯНИЕМ ----------
 function showLoading(isLoading) {
     const grid = document.getElementById('installationsGrid');
+    if (!grid) return;
     if (isLoading) {
         grid.innerHTML = `<div class="loading-placeholder">⏳ Загрузка данных...</div>`;
     }
@@ -325,23 +389,75 @@ function showLoading(isLoading) {
 
 function showError(message) {
     const errorDiv = document.getElementById('errorMessage');
-    errorDiv.textContent = message;
+    if (!errorDiv) return;
+    errorDiv.textContent = `❌ ${message}`;
     errorDiv.style.display = 'block';
+    errorDiv.className = 'error-message';
     setTimeout(() => {
         errorDiv.style.display = 'none';
     }, 5000);
 }
 
-function hideError() {
-    document.getElementById('errorMessage').style.display = 'none';
+function showSuccess(message) {
+    const errorDiv = document.getElementById('errorMessage');
+    if (!errorDiv) return;
+    errorDiv.textContent = `✅ ${message}`;
+    errorDiv.style.display = 'block';
+    errorDiv.className = 'success-message';
+    setTimeout(() => {
+        errorDiv.style.display = 'none';
+    }, 3000);
 }
+
+function hideError() {
+    const errorDiv = document.getElementById('errorMessage');
+    if (!errorDiv) return;
+    errorDiv.style.display = 'none';
+}
+
+// ---------- СТИЛИ ДЛЯ УСПЕШНЫХ СООБЩЕНИЙ ----------
+(function addSuccessStyles() {
+    if (document.getElementById('success-style')) return;
+    const style = document.createElement('style');
+    style.id = 'success-style';
+    style.textContent = `
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            border: 2px solid #c3e6cb;
+            animation: shake 0.5s;
+            font-weight: 500;
+        }
+    `;
+    document.head.appendChild(style);
+})();
 
 // ---------- ИНИЦИАЛИЗАЦИЯ ----------
 document.addEventListener('DOMContentLoaded', () => {
+    // Проверяем, что мы на главной странице
+    const grid = document.getElementById('installationsGrid');
+    if (!grid) {
+        console.log('ℹ️ Главная страница не активна, пропускаем инициализацию main.js');
+        return;
+    }
+    
+    // Загружаем данные
     loadInstallations();
     
-    document.getElementById('searchInput').addEventListener('input', filterInstallations);
-    document.getElementById('statusFilter').addEventListener('change', filterInstallations);
+    // Обработчики событий с проверками
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', filterInstallations);
+    }
+    
+    if (statusFilter) {
+        statusFilter.addEventListener('change', filterInstallations);
+    }
     
     // Закрытие модалок по клику на оверлей
     window.addEventListener('click', (e) => {
